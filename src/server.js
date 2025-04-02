@@ -79,7 +79,7 @@ app.get('/usuarios', authMiddleware, (req, res, next) => {
     html += "<ul>";
     let usuariosFiltrados = [];
     if (query != null) {
-        usuariosFiltrados = usuarios.filter((u) => u.toLowerCase().includes(query.toLowerCase()));
+        usuariosFiltrados = usuarios.filter((u) => u.charAt(0).toLowerCase().includes(query.toLowerCase()));
     } else {
         usuariosFiltrados = usuarios;
     }
