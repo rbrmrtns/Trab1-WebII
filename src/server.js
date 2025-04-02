@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = 3000;
@@ -8,30 +9,68 @@ app.use(express.urlencoded({
     extended: false 
 }));
 
-const middleware = (req, res, next) => {
+const authMiddleware = (req, res, next) => {
+    if (req.query.teste === 'true') { // adicione '?teste=true' ao final da URL para contornar a verificação
+        return next();
+    }
+
     const token = req.headers['authorization'];
    
-    if (token == null) {
-        return res.sendStatus(401);
+    if (!token) {
+        const erro = new Error;
+        erro.statusCode = 401;
+        erro.message = "Requisição não autorizada";
+        throw erro;
     }
 
     next();
 };
 
+const validationMiddleware = (req, res, next) => {
+    const email = req.body['email'];
+    const nome = req.body['nome'];
+
+    
+
+    if (!email || !/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email)) {
+        const erro = new Error;
+        erro.statusCode = 400;
+        erro.message = "E-mail não informado ou inválido";
+        throw erro;
+    }
+
+    if (!nome || !/^[a-zA-Z\s]+$/.test(nome)) {
+        const erro = new Error;
+        erro.statusCode = 400;
+        erro.message = "Nome não informado ou inválido";
+        throw erro;
+    }
+
+    next();
+}
+
+const errorHandlerMiddleware = (err, req, res, next) => {
+    const statusCode = err.statusCode || 500;
+    const message = err.message || 'Erro interno do servidor';
+
+    return res.status(statusCode).json({ erro: message });
+}
+
 const usuarios = ['Enzo', 'Ricardo', 'Giovana', 'Oliver', 'Anthony'];
 
-app.get('/', middleware, (req, res, next) => {
+app.get('/', authMiddleware, (req, res, next) => {
     res.send("Bem-vindo(a), você se conectou com sucesso!");
 });
 
-app.get('/usuarios/:usuarioNome', middleware, (req, res, next) => {
+app.get('/usuarios/:usuarioNome', authMiddleware, (req, res, next) => {
     const usuarioNome = req.params.usuarioNome;
     res.send(`Olá, ${usuarioNome}!`);
 });
 
-app.get('/usuarios', middleware, (req, res, next) => {
+app.get('/usuarios', authMiddleware, (req, res, next) => {
     const query = req.query.nome;
     let html;
+
     if (query == null) {
         html = `<h1>Nomes de usuários</h1>`;
     } else {
@@ -48,75 +87,21 @@ app.get('/usuarios', middleware, (req, res, next) => {
         html += `<li>${u}</li>`;
     })
     html += "</ul>";
+    
     res.send(html);
 });
 
-app.post('/usuarios/add', middleware, (req, res, next) => {
+app.post('/usuarios/add', authMiddleware, validationMiddleware, (req, res, next) => {
+    const id = crypto.randomUUID();
+    const email = req.body['email'];
+    const nome = req.body['nome'];
+    const dados = {id, email, nome};
 
+    res.send(dados)
 })
+
+app.use(errorHandlerMiddleware);
 
 app.listen(PORT, () => {
     console.log(`Servidor rodando em http://localhost:${PORT}`);
 });
-
-
-
-// const users = ['vini', 'theo'];
-// app.get('/users', (req, res) => {
-//     let html = "<ul>";
-//     users.forEach(u => {
-//         html += `<li>${u}</li>`
-//     })
-//     html += "</ul>"
-//     html += '<a href="add-user.html">ADD USER</a>'
-//     res.send(html);
-// });
-
-// app.post('/users', (req, res) => {
-//     console.log({ body: req.body});
-//     const { name } = req.body;
-//     users.push(name);
-//     // res.send("OK!!")
-//     res.redirect('/users');
-// });
-
-// // pagina estatica
-// // 1. mapear junto ao express tudo que é estático
-// app.use(express.static('public'))
-// // 2. enviar o arquivo de fato
-
-
-
-// // query params
-// // sao legais => CACHE! Dados simples, paginacao, consulta, limites
-// // nao sao legais => deixa exposta a informação, logo nao podem ser utilizados para dados sensiveis; quantidade de informação e encoding da url; 
-// // ?q=educacao&saude
-// /*
-// { q: 'educação', saude: '' }
-// */
-// app.get('/teste', (req, res) => {
-//     console.log({
-//         query: req.query
-//     })
-//     const query = req.query.q;
-//     res.send("Voce buscou por " + query);
-// })
-
-// app.get('/parametrizado/1', (req, res) => {
-//     res.send("O 1 é imutavel - deve ser declarado primeiro")
-// });
-
-// app.get('/parametrizado/:id', (req, res) => {
-//     // Destructuring, pega o atributo id do objeto req.params, o mesmo que
-//     // const id = req.params.id;
-//     const { id } = req.params;
-//     res.send("Buscou pelo id " + id);
-// })
-
-// //app.get('/users/admin')
-// //app.get('/users/:username)
-
-
-// app.get('/series/:name/:season', (req, res) => {
-//     res.json(req.params);
-// })
